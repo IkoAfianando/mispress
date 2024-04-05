@@ -3,8 +3,8 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"github.com/IkoAfianando/mispress/models"
 	"github.com/google/uuid"
-	"gitlab.com/repo/mispress/models"
 )
 
 var (
@@ -38,17 +38,17 @@ func (db Database) UpdatePost(postId string, post models.Post) error {
 		return err
 	}
 
-	post.ID = postId
-	logQuery := "INSERT INTO post_logs(post_id, operation) VALUES ($1, $2)"
-	_, err = db.Conn.Exec(logQuery, post.ID, updateOp)
+	var postLogId = uuid.NewString()
+	logQuery := "INSERT INTO post_logs(post_log_id, post_id, operation) VALUES ($1, $2, $3)"
+	_, err = db.Conn.Exec(logQuery, postLogId, postId, updateOp)
 	if err != nil {
 		db.Logger.Err(err).Msg("could not log operation for logstash")
 	}
 	return nil
 }
 
-func (db Database) DeletePost(postId int) error {
-	query := "DELETE FROM Posts WHERE id=$1"
+func (db Database) DeletePost(postId string) error {
+	query := "DELETE FROM Posts WHERE post_id=$1"
 	_, err := db.Conn.Exec(query, postId)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -57,10 +57,43 @@ func (db Database) DeletePost(postId int) error {
 		return err
 	}
 
-	logQuery := "INSERT INTO post_logs(post_id, operation) VALUES ($1, $2)"
-	_, err = db.Conn.Exec(logQuery, postId, deleteOp)
+	var postLogId = uuid.NewString()
+	logQuery := "INSERT INTO post_logs(post_log_id, post_id, operation) VALUES ($1, $2, $3)"
+	_, err = db.Conn.Exec(logQuery, postLogId, postId, deleteOp)
 	if err != nil {
 		db.Logger.Err(err).Msg("could not log operation for logstash")
 	}
 	return nil
+}
+
+func (db Database) GetPosts() ([]models.Post, error) {
+	rows, err := db.Conn.Query("SELECT post_id, title, body FROM posts")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var posts []models.Post
+	for rows.Next() {
+		var post models.Post
+		err := rows.Scan(&post.PostId, &post.Title, &post.Body)
+		if err != nil {
+			return nil, err
+		}
+		posts = append(posts, post)
+	}
+	return posts, nil
+}
+
+func (db Database) GetPost(postId string) (*models.Post, error) {
+	var post models.Post
+	query := "SELECT post_id, title, body FROM posts WHERE post_id=$1"
+	err := db.Conn.QueryRow(query, postId).Scan(&post.PostId, &post.Title, &post.Body)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ErrNoRecord
+		}
+		return nil, err
+	}
+	return &post, nil
 }
