@@ -21,6 +21,10 @@ type Config struct {
 	Logger   zerolog.Logger
 }
 
+type Redis struct {
+	Method string
+}
+
 func Init(cfg Config) (Database, error) {
 	db := Database{}
 	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
