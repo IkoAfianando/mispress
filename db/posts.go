@@ -7,6 +7,11 @@ import (
 	"github.com/google/uuid"
 )
 
+type Post struct {
+	PostId string `json:"post_id"`
+	PostName string `json:"post_name"`
+}
+
 var (
 	ErrNoRecord = fmt.Errorf("no matching record found")
 	insertOp    = "insert"
